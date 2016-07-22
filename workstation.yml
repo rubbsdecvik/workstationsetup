@@ -1,0 +1,109 @@
+---
+# This playbook will setup a local workstation by default
+
+- hosts: all
+  roles:
+    - geerlingguy.repo-epel
+  vars:
+    packages:
+      - vim-enhanced
+      - htop
+      - tmux
+      - git
+      - mosh
+      - weechat
+      - epel-release
+    workspaces:
+      - personal
+      - dw
+      - rh
+    dotfiles:
+      - .vimrc
+      - .tmux.conf
+      - .bashrc
+      - .zshrc
+      - .gitconfig
+      - .gitignore_global
+
+  tasks:
+    - name: Install Packages
+      package: name={{item}} state=installed
+      with_items: "{{packages}}"
+
+    - name: Make workspace exist
+      file: >
+        path=/home/rubbs/workspace
+        state=directory
+        owner=rubbs
+        group=rubbs
+
+    - name: Make workspace exist
+      file: >
+        path=/home/rubbs/workspace/{{item}}
+        state=directory
+        group=rubbs
+        owner=rubbs
+      with_items: "{{workspaces}}"
+
+    - name: Install dotfile repo
+      git: >
+        repo=https://github.com/rubbsdecvik/dotfiles
+        dest=/home/rubbs/workspace/personal/dotfiles
+        version=HEAD
+      become_user: rubbs
+      tags:
+        - skip_ansible_lint
+
+    - name: Link dotfiles
+      file: >
+        path=/home/rubbs/{{item}}
+        src=/home/rubbs/workspace/personal/dotfiles/{{item}}
+        state=link
+        force=True
+        owner=rubbs
+        group=rubbs
+      with_items: "{{dotfiles}}"
+
+    - name: Install Neovim Repo
+      get_url: >
+        dest=/etc/yum.repos.d/dperson-neovim-epel-7.repo
+        url=https://copr.fedorainfracloud.org/coprs/dperson/neovim/repo/epel-7/dperson-neovim-epel-7.repo
+
+    - name: Install Neovim
+      package: name=neovim state=installed
+
+    - name: Create .config directory and required .vim directory
+      file: >
+        path=/home/rubbs/{{item}}
+        state=directory
+        owner=rubbs
+        group=rubbs
+      with_items:
+        - .config
+        - .vim
+
+    - name: Link Neovim configs
+      file: >
+        path=/home/rubbs/.config/nvim
+        src=/home/rubbs/.vim
+        state=link
+        owner=rubbs
+        group=rubbs
+
+    - name: Link Neovim config
+      file: >
+        path=/home/rubbs/.config/nvim/init.vim
+        src=/home/rubbs/.vimrc
+        state=link
+        owner=rubbs
+        group=rubbs
+
+    - name: Install Tundle
+      git: >
+        repo=https://github.com/chilicuil/tundle
+        dest=/home/rubbs/.tmux/plugins/tundle
+        version=HEAD
+      become_user: rubbs
+      tags:
+        - skip_ansible_lint
+...
